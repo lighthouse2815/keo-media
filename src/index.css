@@ -1,0 +1,92 @@
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+  color: #1c2120;
+  background: #f1f4f3;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --page: #f1f4f3;
+  --surface: #fbfcfb;
+  --surface-strong: #e8edeb;
+  --field: #f6f8f7;
+  --ink: #1c2120;
+  --muted-heading: #67716e;
+  --muted: #5e6966;
+  --placeholder: #7a8582;
+  --line: #cdd5d2;
+  --line-strong: #b8c2bf;
+  --accent: #c7463b;
+  --accent-hover: #af392f;
+  --accent-soft: rgba(199, 70, 59, 0.11);
+  --accent-shadow: rgba(154, 45, 36, 0.2);
+  --danger: #a7352c;
+  --button-text: #f8faf9;
+  --soft-shadow: 0 14px 38px rgba(44, 61, 56, 0.1);
+  --panel-shadow: 0 24px 70px rgba(43, 60, 55, 0.13);
+  --control-shadow: 0 2px 8px rgba(43, 60, 55, 0.08);
+  --skeleton-highlight: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme='dark'] {
+  color: #edf2f0;
+  background: #111514;
+
+  --page: #111514;
+  --surface: #181e1c;
+  --surface-strong: #232b28;
+  --field: #151a18;
+  --ink: #edf2f0;
+  --muted-heading: #9da8a4;
+  --muted: #aab4b1;
+  --placeholder: #87928e;
+  --line: #35403c;
+  --line-strong: #485550;
+  --accent: #c7463b;
+  --accent-hover: #db5b4f;
+  --accent-soft: rgba(199, 70, 59, 0.2);
+  --accent-shadow: rgba(199, 70, 59, 0.2);
+  --danger: #ef8d84;
+  --button-text: #111514;
+  --soft-shadow: 0 14px 38px rgba(0, 0, 0, 0.24);
+  --panel-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+  --control-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --skeleton-highlight: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--page);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  color: var(--ink);
+  background: var(--page);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  max-width: 100%;
+}
+
+::selection {
+  color: #fff8f5;
+  background: var(--accent);
+}
