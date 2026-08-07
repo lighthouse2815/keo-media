@@ -20,6 +20,7 @@ import './App.css'
 
 type MediaType = 'video' | 'audio'
 type AnalysisStatus = 'idle' | 'loading' | 'ready' | 'error'
+type DownloadStatus = 'idle' | 'loading' | 'success' | 'error'
 
 type VideoInfo = {
   title: string
@@ -29,16 +30,12 @@ type VideoInfo = {
 
 const qualityOptions = {
   video: [
-    { value: '2160p', label: '2160p', detail: '4K' },
-    { value: '1080p', label: '1080p', detail: 'Full HD' },
     { value: '720p', label: '720p', detail: 'HD' },
     { value: '480p', label: '480p', detail: 'Nhẹ' },
+    { value: '360p', label: '360p', detail: 'Gọn' },
+    { value: '240p', label: '240p', detail: 'Tiết kiệm' },
   ],
-  audio: [
-    { value: '320kbps', label: '320 kbps', detail: 'Cao nhất' },
-    { value: '192kbps', label: '192 kbps', detail: 'Cân bằng' },
-    { value: '128kbps', label: '128 kbps', detail: 'Tiết kiệm' },
-  ],
+  audio: [{ value: '320kbps', label: '320 kbps', detail: 'MP3' }],
 }
 
 function getYouTubeId(rawUrl: string) {
@@ -75,8 +72,9 @@ function App() {
   const [status, setStatus] = useState<AnalysisStatus>('idle')
   const [error, setError] = useState('')
   const [mediaType, setMediaType] = useState<MediaType>('video')
-  const [quality, setQuality] = useState('1080p')
+  const [quality, setQuality] = useState('720p')
   const [video, setVideo] = useState<VideoInfo | null>(null)
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle')
   const [downloadMessage, setDownloadMessage] = useState('')
 
   useEffect(() => {
@@ -111,6 +109,7 @@ function App() {
 
     setStatus('loading')
     setError('')
+    setDownloadStatus('idle')
     setDownloadMessage('')
 
     const canonicalUrl = `https://www.youtube.com/watch?v=${videoId}`
@@ -147,15 +146,66 @@ function App() {
 
   const handleMediaType = (nextType: MediaType) => {
     setMediaType(nextType)
-    setQuality(nextType === 'video' ? '1080p' : '320kbps')
+    setQuality(nextType === 'video' ? '720p' : '320kbps')
+    setDownloadStatus('idle')
     setDownloadMessage('')
   }
 
-  const handleDownload = () => {
-    const format = mediaType === 'video' ? 'MP4' : 'MP3'
-    setDownloadMessage(
-      `Đã chọn ${format} ${quality}. Hãy nối API tải xuống để xuất file thật.`,
-    )
+  const handleDownload = async () => {
+    const videoId = getYouTubeId(url)
+    if (!videoId) {
+      setDownloadStatus('error')
+      setDownloadMessage('Link video không còn hợp lệ. Hãy phân tích lại đường dẫn.')
+      return
+    }
+
+    setDownloadStatus('loading')
+    setDownloadMessage('Đang tạo đường dẫn tải an toàn...')
+
+    try {
+      const response = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          mediaType,
+          quality,
+        }),
+      })
+
+      const data = (await response.json()) as {
+        downloadUrl?: string
+        filename?: string | null
+        fileSize?: string | null
+        error?: string
+      }
+
+      if (!response.ok || !data.downloadUrl) {
+        throw new Error(data.error || 'Không tạo được file tải xuống.')
+      }
+
+      const downloadUrl = new URL(data.downloadUrl)
+      if (downloadUrl.protocol !== 'https:') {
+        throw new Error('Đường dẫn tải xuống không an toàn.')
+      }
+
+      const fileLabel = [data.filename, data.fileSize && `(${data.fileSize})`]
+        .filter(Boolean)
+        .join(' ')
+
+      setDownloadStatus('success')
+      setDownloadMessage(
+        fileLabel ? `Đang bắt đầu tải ${fileLabel}.` : 'Đang bắt đầu tải file.',
+      )
+      window.location.assign(downloadUrl.toString())
+    } catch (downloadError) {
+      setDownloadStatus('error')
+      setDownloadMessage(
+        downloadError instanceof Error
+          ? downloadError.message
+          : 'Không thể tải file. Vui lòng thử lại.',
+      )
+    }
   }
 
   const motionProps = reduceMotion
@@ -274,7 +324,7 @@ function App() {
                 </button>
               </div>
               <p id="url-help" className="field-help">
-                Link của bạn chỉ được dùng để lấy thông tin video.
+                Link chỉ được gửi đến dịch vụ xử lý khi bạn bấm tải.
               </p>
               <AnimatePresence initial={false}>
                 {error && (
@@ -387,6 +437,7 @@ function App() {
                             className={quality === option.value ? 'selected' : ''}
                             onClick={() => {
                               setQuality(option.value)
+                              setDownloadStatus('idle')
                               setDownloadMessage('')
                             }}
                             aria-pressed={quality === option.value}
@@ -398,16 +449,23 @@ function App() {
                       </div>
                     </fieldset>
 
-                    <button className="download-button" type="button" onClick={handleDownload}>
+                    <button
+                      className="download-button"
+                      type="button"
+                      onClick={handleDownload}
+                      disabled={downloadStatus === 'loading'}
+                    >
                       <DownloadSimple size={20} weight="bold" />
-                      Tải {mediaType === 'video' ? 'MP4' : 'MP3'}
+                      {downloadStatus === 'loading'
+                        ? 'Đang chuẩn bị file'
+                        : `Tải ${mediaType === 'video' ? 'MP4' : 'MP3'}`}
                     </button>
 
                     <AnimatePresence initial={false}>
                       {downloadMessage && (
                         <motion.p
-                          className="download-note"
-                          role="status"
+                          className={`download-note ${downloadStatus === 'error' ? 'is-error' : ''}`}
+                          role={downloadStatus === 'error' ? 'alert' : 'status'}
                           initial={reduceMotion ? false : { opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
@@ -460,13 +518,13 @@ function App() {
           <div>
             <h2 id="trust-title">Tải có trách nhiệm.</h2>
             <p>
-              Chỉ tải nội dung bạn sở hữu hoặc được phép sử dụng. Bản frontend này không lưu
-              lịch sử đường dẫn.
+              Chỉ tải nội dung bạn sở hữu hoặc được phép sử dụng. Kéo không lưu lịch sử đường
+              dẫn; link chỉ được chuyển tới dịch vụ tạo file khi bạn yêu cầu tải.
             </p>
           </div>
           <div className="privacy-note">
             <LockKey size={18} />
-            <span>Không tài khoản. Không theo dõi lịch sử.</span>
+            <span>Khóa API được giữ kín trên Cloudflare.</span>
           </div>
         </section>
       </main>

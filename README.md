@@ -1,6 +1,6 @@
 # Kéo
 
-Frontend tải video và âm thanh từ liên kết YouTube. Người dùng có thể dán đường dẫn, chọn định dạng MP4 hoặc MP3 và chọn chất lượng trước khi tải.
+Ứng dụng web tải video và âm thanh từ liên kết YouTube. Người dùng có thể dán đường dẫn, chọn MP4 hoặc MP3, chọn chất lượng và nhận file thật qua API trung gian.
 
 ## Tính năng
 
@@ -8,17 +8,19 @@ Frontend tải video và âm thanh từ liên kết YouTube. Người dùng có 
 - Kiểm tra liên kết trước khi xử lý.
 - Đọc tiêu đề, kênh và ảnh thu nhỏ của video qua YouTube oEmbed.
 - Có phương án dự phòng khi không lấy được metadata.
-- Chọn tải video MP4 với chất lượng từ 480p đến 2160p.
-- Chọn tải âm thanh MP3 với chất lượng từ 128 kbps đến 320 kbps.
+- Chọn tải video MP4 với chất lượng từ 240p đến 720p trên gói dùng thử miễn phí.
+- Tải âm thanh MP3 320 kbps.
+- Khóa API chỉ tồn tại trong Cloudflare Worker, không được đưa vào bundle frontend.
+- Xử lý riêng các lỗi hết lượt miễn phí, quá giới hạn, video riêng tư hoặc dịch vụ tạm gián đoạn.
 - Có đầy đủ trạng thái trống, đang xử lý, lỗi và sẵn sàng.
 - Hỗ trợ giao diện sáng, tối và thiết bị di động.
 - Hỗ trợ thao tác bàn phím, focus state và reduced motion.
 
 ## Trạng thái dự án
 
-Đây là phần frontend. Giao diện, kiểm tra liên kết, đọc metadata và lựa chọn định dạng đã hoạt động.
+Frontend và API serverless đã được nối hoàn chỉnh. Endpoint `POST /api/download` chạy trong Cloudflare Worker, gọi Tunelio để tạo đường dẫn tải có thời hạn rồi chuyển trình duyệt tới file MP4/MP3.
 
-Nút tải hiện xác nhận định dạng và chất lượng đã chọn. Để tạo và tải file thật, dự án cần được kết nối với một backend có nhiệm vụ xử lý media.
+Production chỉ tải được file sau khi Worker có secret `TUNELIO_API_KEY`. Xem phần cấu hình bên dưới.
 
 ## Website production
 
@@ -31,6 +33,8 @@ Nút tải hiện xác nhận định dạng và chất lượng đã chọn. Đ
 - React 19
 - TypeScript
 - Vite 8
+- Cloudflare Workers
+- Tunelio Download API
 - Motion
 - Phosphor Icons
 - CSS thuần với hệ thống biến màu cho light mode và dark mode
@@ -40,6 +44,7 @@ Nút tải hiện xác nhận định dạng và chất lượng đã chọn. Đ
 
 - Node.js `^20.19.0` hoặc `>=22.12.0`
 - npm
+- Tài khoản Tunelio để lấy API key
 
 ## Cài đặt
 
@@ -57,6 +62,13 @@ Sau đó mở địa chỉ được Vite hiển thị trong terminal. Mặc đ�
 
 ```text
 http://localhost:5173
+```
+
+Để thử cả endpoint Worker ở local, sao chép `.dev.vars.example` thành `.dev.vars`, điền API key rồi chạy:
+
+```bash
+npm run build
+npx wrangler dev
 ```
 
 ## Các lệnh chính
@@ -81,11 +93,26 @@ http://localhost:5173
 │   ├── App.tsx
 │   ├── index.css
 │   └── main.tsx
+├── worker/
+│   └── index.ts
+├── .dev.vars.example
 ├── index.html
 ├── package.json
 ├── wrangler.jsonc
 └── vite.config.ts
 ```
+
+## Cấu hình API tải xuống
+
+Tunelio yêu cầu API key ở phía server. Tạo tài khoản tại <https://tunelio.dev>, lấy key có tiền tố `tnl_`, sau đó lưu key thành secret của Worker:
+
+```bash
+npx wrangler secret put TUNELIO_API_KEY
+```
+
+Wrangler sẽ yêu cầu nhập giá trị; dán API key rồi nhấn Enter. Không ghi key thật vào `.env`, `wrangler.jsonc` hoặc source code.
+
+Gói Trial hiện cấp 100 credit một lần, không cần thẻ. Mỗi lần gọi `/create` tốn 10 credit, tương đương khoảng 10 lượt tải để thử. Gói này hỗ trợ MP4 tối đa 720p và MP3 320 kbps. Đây là hạn mức dùng thử, không phải hạ tầng miễn phí vô hạn.
 
 ## Deploy lên Cloudflare
 
@@ -103,11 +130,9 @@ npm run deploy
 
 Cloudflare sẽ phục vụ nội dung trong thư mục `dist`. Cấu hình SPA fallback đã được khai báo trong `wrangler.jsonc`.
 
-## Kết nối backend
+## API nội bộ
 
-Có thể thay nội dung của hàm `handleDownload` trong `src/App.tsx` bằng lời gọi đến API xử lý media.
-
-Ví dụ request:
+Frontend gửi request cùng origin tới Worker:
 
 ```http
 POST /api/download
@@ -117,12 +142,12 @@ Content-Type: application/json
 ```json
 {
   "url": "https://www.youtube.com/watch?v=VIDEO_ID",
-  "format": "mp4",
-  "quality": "1080p"
+  "mediaType": "video",
+  "quality": "720p"
 }
 ```
 
-Backend có thể trả về URL tải tạm thời hoặc phản hồi dạng file. Frontend nên hiển thị thêm tiến trình xử lý và lỗi từ API khi phần này được tích hợp.
+Worker kiểm tra domain và video ID, giới hạn định dạng/chất lượng hợp lệ, gọi Tunelio bằng secret rồi chỉ trả về URL tải HTTPS có thời hạn. File đi thẳng từ dịch vụ tới trình duyệt, không chạy xuyên qua Worker.
 
 ## Kiểm tra trước khi đóng góp
 

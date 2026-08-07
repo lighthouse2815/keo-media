@@ -1,8 +1,10 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "keo-media",
-  "compatibility_date": "2026-08-08",
+  "compatibility_date": "2026-08-07",
+  "main": "./worker/index.ts",
   "assets": {
+    "binding": "ASSETS",
     "directory": "./dist",
     "not_found_handling": "single-page-application"
   }
