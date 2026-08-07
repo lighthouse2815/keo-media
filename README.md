@@ -20,6 +20,12 @@ Frontend tải video và âm thanh từ liên kết YouTube. Người dùng có 
 
 Nút tải hiện xác nhận định dạng và chất lượng đã chọn. Để tạo và tải file thật, dự án cần được kết nối với một backend có nhiệm vụ xử lý media.
 
+## Website production
+
+Ứng dụng đang được deploy trên Cloudflare Workers:
+
+<https://keo-media.alexnguyena47.workers.dev>
+
 ## Công nghệ sử dụng
 
 - React 19
@@ -59,6 +65,7 @@ http://localhost:5173
 | --- | --- |
 | `npm run dev` | Chạy development server với HMR |
 | `npm run build` | Kiểm tra TypeScript và tạo production build |
+| `npm run deploy` | Build và deploy production lên Cloudflare Workers |
 | `npm run preview` | Xem thử production build trên máy local |
 | `npm run lint` | Kiểm tra mã nguồn bằng Oxlint |
 
@@ -76,8 +83,25 @@ http://localhost:5173
 │   └── main.tsx
 ├── index.html
 ├── package.json
+├── wrangler.jsonc
 └── vite.config.ts
 ```
+
+## Deploy lên Cloudflare
+
+Đăng nhập Wrangler trên máy local:
+
+```bash
+npx wrangler login
+```
+
+Build và deploy ứng dụng:
+
+```bash
+npm run deploy
+```
+
+Cloudflare sẽ phục vụ nội dung trong thư mục `dist`. Cấu hình SPA fallback đã được khai báo trong `wrangler.jsonc`.
 
 ## Kết nối backend
 
